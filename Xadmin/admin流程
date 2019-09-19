@@ -1,0 +1,56 @@
+admin插件的流程：
+1.启动
+    from django.apps import AppConfig
+    from django.utils.module_loading import autodiscover_modules
+
+    class XaddminConfig(AppConfig):
+        name = 'Xadmin'
+        def ready(self):
+            autodiscover_modules('Xadmin')
+    程序在启动的时候就会在项目所有的目录下查找并调用autodiscover_modules方法来执行Xadmin.py
+
+2.注册
+    admin.site.register(模型类)
+    在这里要注册每一个app下的model
+    单例模式：
+        单例模式（Singleton Pattern）是一种常用的软件设计模式，该模式的主要目的是确保某一个类只有一个实例存在。当你希望在整个系统中，某个类只能出现一个实例时，单例对象就能派上用场。
+        Python 的模块就是天然的单例模式，因为模块在第一次导入时，会生成 .pyc 文件，当第二次导入时，就会直接加载 .pyc 文件，而不会再次执行模块代码。
+        个人理解是，一个插件，只有一个实例化对象就可以了，因为要管理整个项目的数据，所以不必要多个
+
+3.设计url
+    根据用户访问的实例来说
+    from Xadmin.service.Xadmin import site
+    用户先访问/Xadmin/，此时会执行site.urls，site是一个单例对象，此时去Xadmin.service.Xadmin下，找到site，site是Xadminsite的一个实例对象，
+    此时Xadminsite下有一个静态方法和self._registry = {}，生成Xadminsite对象的时候urls就会调用，
+    @property
+    def urls(self):
+        return self.get_urls(),None,None
+    self._registry = {}用来存放每个注册类，键是注册类，值是ModelXadmin或者他的子类
+    调用时返回一级url，返回值中有一个self.get_urls()，再去调用
+    def get_urls(self):
+
+    tmp=[]
+    for model,model_class_obj in self._registry.items():
+        app_name=model._meta.app_label
+        model_name=model._meta.model_name
+        tmp.append(url(r'^{0}/{1}/'.format(app_name,model_name),model_class_obj.urls2),)
+    return tmp
+
+    对self.get_urls()做循环，准备二级url分发，分发的时候又会调用urls2()方法，此时该类的方法是每个ModelXadmin中的方法，
+    对于为什么要把此方法放在ModelXadmin中是因为每个model要生成增删改查四个url，如果放在XadminSite中那么到时候每个页面都会一样
+    好了，再说MOdelXadmin.urls2,该方法也是一个静态方法，对象创建时就会调用
+    @property
+    def urls2(self):
+        return self.get_urls2(), None, None
+
+     同上，会执行self.get_urls2()
+    def get_urls2(self):
+        temp = []
+        app_name=self.model._meta.app_label
+        model_name=self.model._meta.model_name
+        temp.append(url(r"^$", self.list_view,name='%s_%s_list'%(app_name,model_name)))
+        temp.append(url(r"^add/$", self.add_view,name='%s_%s_add'%(app_name,model_name)))
+        temp.append(url(r"^(\d+)/change/$", self.change_view,name='%s_%s_change'%(app_name,model_name)))
+        temp.append(url(r"^(\d+)/delete/$", self.delete_view,name='%s_%s_delete'%(app_name,model_name)))
+        return temp
+    至此三级url便全部生成，每个model类都会有增删改查四个url

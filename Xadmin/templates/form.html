@@ -1,0 +1,25 @@
+<div CLASS="container">
+    <div class="row">
+        <div class="col-md-8 col-md-offset-2">
+            <form action="" method="post" class="form">
+                {% csrf_token %}
+                {% for field in modelform %}
+                <div style="position: relative">
+                    <label for="">
+                        {{ field.label }}
+                    </label>
+                    {{ field }}
+                    {% if field.is_pop_flag %}
+                        <p><a class="pop_add" onclick="foo('{{ field.pop_url }}')" style="position: absolute; right: -35px;top: 24px">+</a></p>
+                    {% endif %}
+
+                    <p class="error pull-right">{{ field.errors.0 }}</p>
+                </div>
+                {% endfor %}
+                <input type="submit" class="btn btn-default" id="submit">
+            </form>
+        </div>
+    </div>
+</div>
+
+
